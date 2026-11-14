@@ -28,6 +28,7 @@ document.body.addEventListener("click", (event) => {
   const btn = event.target.closest("[data-act]");
   if (!btn) return;
   const act = btn.dataset.act;
+  if (act === "back") goBack();
   if (act === "home") showHome();
   if (act === "continue") resume();
   if (act === "guide") showGuide(btn.dataset.id || (state.guide || "html"));
@@ -115,9 +116,38 @@ function progressNumbers() {
   return { finished, total };
 }
 
+const SWEET = [
+  "نیایش جان، دوستت دارم.",
+  "قشنگِ من، همین که این‌جایی برایم دنیاست.",
+  "هر درسی که جلو می‌روی، بیشتر بهت افتخار می‌کنم.",
+  "عزیزدلم، آرام بنویس. من همین‌جا کنارتم.",
+  "تو ملکه قلب منی، نیایشم.",
+  "لبخندت را دوست دارم، حتی وقتی درس سخت است.",
+  "قربونت برم، این یکی را هم با هم می‌نویسیم.",
+  "دلم برای پیشرفتت ضعف می‌رود، عشقم."
+];
+
+function sweetLine(seed) {
+  const n = Math.abs(Number(seed) || 0);
+  return SWEET[n % SWEET.length];
+}
+
+function goBack() {
+  if (state.view === "lesson") {
+    const items = trackLessons(state.track);
+    const place = items.findIndex((item) => item.id === state.lessonId);
+    if (place > 0) openLesson(items[place - 1].id);
+    else showHome();
+    return;
+  }
+  showHome();
+}
+
 function paintChrome() {
   const numbers = progressNumbers();
   const bar = document.getElementById("topBar");
+  const back = document.getElementById("back");
+  if (back) back.hidden = state.view === "home";
   if (bar) bar.style.width = (numbers.total ? (numbers.finished / numbers.total) * 100 : 0) + "%";
   document.querySelectorAll(".dock button").forEach((btn) => {
     const act = btn.dataset.act;
@@ -155,7 +185,8 @@ function showHome() {
     (numbers.finished ? "ادامه از همین‌جا" : "شروع یادگیری") + "</b><span>" +
     escapeHtml(COURSE.tracks.find((item) => item.id === last.track).title + " · " + last.title) + "</span></button>";
   app.innerHTML =
-    '<section class="hero"><h1>یادگیری نیایش</h1>' +
+    '<section class="hero enter"><h1>یادگیری نیایش</h1>' +
+    "<p class=\"sweet\">" + escapeHtml(sweetLine(numbers.finished)) + "</p>" +
     "<p>درس‌ها کوتاه‌اند. می‌خوانی، خودت می‌نویسی، و بررسی می‌گوید درست است یا نه. اگر ببندی، دفعه بعد از همان درس ادامه می‌دهی.</p>" +
     cont +
     '<div class="paths">' + cards + "</div>" +
@@ -197,7 +228,7 @@ function renderLesson() {
   const place = items.findIndex((item) => item.id === lesson.id);
   topMeta.textContent = (place + 1) + " از " + items.length;
   app.innerHTML =
-    '<div class="layout"><aside class="side"><h2>' + escapeHtml(track.title) + '</h2><div class="lessons">' +
+    '<div class="layout enter"><aside class="side"><h2>' + escapeHtml(track.title) + '</h2><div class="lessons">' +
     buttons + '</div></aside><section class="panel">' + lessonBody(lesson) +
     editorBlock(lesson, code, true) + pager(items, place) + "</section></div>";
   paintChrome();
@@ -224,14 +255,17 @@ function showGuide(id) {
     item.id + '">' + escapeHtml(item.title) + "</button>"
   ).join("");
   const rows = section.rows.map((row) => "<tr><td>" + escapeHtml(row[0]) + "</td><td>" + escapeHtml(row[1]) + "</td></tr>").join("");
-  app.innerHTML = '<section class="panel"><h2>مرجع</h2><p>' + escapeHtml(section.intro) +
+  app.innerHTML = '<section class="panel enter"><h2>مرجع</h2><p class="sweet">' + escapeHtml(sweetLine(3)) +
+    '</p><p>' + escapeHtml(section.intro) +
     '</p><div class="chips">' + chips + '</div><table class="compare"><tbody>' + rows + "</tbody></table></section>";
   paintChrome();
   window.scrollTo(0, 0);
 }
 
 function lessonBody(lesson) {
-  let html = '<span class="level">' + escapeHtml(lesson.level) + "</span><h2>" + escapeHtml(lesson.title) + "</h2>";
+  const sweetIndex = COURSE.lessons.findIndex((item) => item.id === lesson.id);
+  let html = '<p class="sweet">' + escapeHtml(sweetLine(sweetIndex + 1)) + '</p><span class="level">' +
+    escapeHtml(lesson.level) + "</span><h2>" + escapeHtml(lesson.title) + "</h2>";
   (lesson.paragraphs || []).forEach((p) => { html += "<p>" + escapeHtml(p) + "</p>"; });
   if (lesson.compare) html += compareTable(lesson.compare);
   if (lesson.kind === "sql") html += schemaBlock();
@@ -330,8 +364,9 @@ function paintResult(result, keepClass) {
   const box = document.getElementById("result");
   if (!box) return;
   box.hidden = false;
-  box.className = "result" + (keepClass ? (result.ok ? " ok" : " bad") : "");
-  box.textContent = result.message || "";
+  box.className = "result" + (keepClass ? (result.ok ? " ok pop" : " bad") : "");
+  const cheer = keepClass && result.ok ? sweetLine(Date.now()) + "\n" : "";
+  box.textContent = cheer + (result.message || "");
   if (result.rows) {
     const table = document.createElement("div");
     table.innerHTML = tableHtml(result.columns || [], result.rows);
@@ -582,7 +617,7 @@ function renderExam() {
     body += '<div class="result ' + (state.examFeedback.ok ? "ok" : "bad") + '">' +
       escapeHtml(state.examFeedback.message) + "</div>";
   }
-  app.innerHTML = '<section class="panel">' + body + "</section>";
+  app.innerHTML = '<section class="panel enter"><p class="sweet">' + escapeHtml(sweetLine(state.examIndex + 2)) + "</p>" + body + "</section>";
   paintChrome();
   window.scrollTo(0, 0);
 }
@@ -620,14 +655,14 @@ function renderExamResult() {
   saveBest(state.examScore);
   const percent = Math.round((state.examScore / total) * 100);
   let line = "خوب پیش رفتی. هر سوالی که غلط شد را در درس همان بخش یک بار دیگر بنویس.";
-  if (percent >= 80) line = "آفرین نیایش. این آزمون را خوب نوشتی.";
+  if (percent >= 80) line = "آفرین نیایش جان. دوستت دارم، و این آزمون را خوب نوشتی.";
   if (percent < 50) line = "اشکال ندارد. برگرد سر درس‌ها و وقتی آماده شدی دوباره امتحان بده.";
   const misses = state.examAnswers.filter((item) => !item.ok).map((item) =>
     '<div class="miss">' + escapeHtml(item.title) + "</div>"
   ).join("");
   state.view = "result";
   topMeta.textContent = "نتیجه آزمون";
-  app.innerHTML = '<section class="hero"><h1>نمره آزمون</h1><div class="score">' +
+  app.innerHTML = '<section class="hero enter"><p class="sweet">' + escapeHtml(sweetLine(state.examScore)) + '</p><h1>نمره آزمون</h1><div class="score">' +
     state.examScore + " از " + total + "</div><p>" + line + "</p>" +
     (misses ? "<h2>این‌ها را دوباره ببین</h2>" + misses : "<p>همه را درست نوشتی.</p>") +
     '<div class="actions"><button class="go" type="button" data-act="exam">آزمون دوباره</button>' +
@@ -651,7 +686,7 @@ function renderPlay() {
     '<button class="' + (kind === state.playKind ? "go" : "ghost") + '" type="button" data-act="play-kind" data-kind="' +
     kind + '">' + kind + "</button>"
   ).join("");
-  app.innerHTML = '<section class="panel"><h2>' + titles[state.playKind] + "</h2>" +
+  app.innerHTML = '<section class="panel enter"><p class="sweet">' + escapeHtml(sweetLine(4)) + '</p><h2>' + titles[state.playKind] + "</h2>" +
     "<p>این‌جا نمره ندارد. هر چه بنویسی اجرا می‌شود تا ببینی چه شکلی می‌شود.</p>" +
     '<div class="row">' + kinds + "</div>" +
     (state.playKind === "sql" ? schemaBlock() : "") +
